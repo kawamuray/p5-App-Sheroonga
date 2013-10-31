@@ -192,6 +192,10 @@ sub exec_show {
     my ($self, $command, @args) = @_;
 
     my $res = $self->exec($command, @args);
+    unless (defined $res) {
+        $self->print("Invalid command: $command\n");
+        return;
+    }
     $self->debug("Groonga response code = ", $res->http_response->code) if DEBUG;
     # We can't use $res->is_success here because
     # Groonga http server returns non-success(2xx)
