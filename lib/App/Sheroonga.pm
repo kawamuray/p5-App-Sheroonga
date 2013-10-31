@@ -192,8 +192,7 @@ sub exec_show {
     my ($self, $command, @args) = @_;
 
     my $res = $self->exec($command, @args);
-    warn "resposne_code = " .$res->http_response->code;
-    warn "data = ".$res->data;
+    $self->debug("Groonga response code = ", $res->http_response->code) if DEBUG;
     # We can't use $res->is_success here because
     # Groonga http server returns non-success(2xx)
     # codes even if HTTP request had succeed.
@@ -231,7 +230,7 @@ sub make_hash_args {
         if (@aseq) {
             $args{shift @aseq} = $arg;
         } else {
-            $self->warn("Unknown argument: $arg");
+            $self->print("Warning: unknown argument: $arg\n");
         }
     }
     %args;
