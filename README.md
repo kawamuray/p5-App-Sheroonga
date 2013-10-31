@@ -1,14 +1,20 @@
-# NAME
+# ABOUT
+## What is this?
+High functional [Groonga](http://groonga.org) shell client.
+The original Groonga shell client which distributed with Groonga itself
+is very poor.  The result of command output is very hard to read, very few
+keyboard support(i.e. these is no Crtl-H(backward delete)), no history
+and no completion.
 
-App::Sheroonga - It's new $module
+This project aims to provide the shell which supports these features.
 
-# SYNOPSIS
+## Product state
+### Code
+Still on development, so it is alpha quality and any non-compatible changes
+can be occur.
 
-    use App::Sheroonga;
-
-# DESCRIPTION
-
-App::Sheroonga is ...
+### Document
+Not documented yet.
 
 # LICENSE
 
