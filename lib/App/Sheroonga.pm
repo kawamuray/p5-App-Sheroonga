@@ -13,6 +13,81 @@ use constant DEBUG => $ENV{SHEROONGA_DEBUG};
 
 our $VERSION = "0.01";
 
+our %GroongaReturnCodes = (
+    0   => "SUCCESS",
+    -1  => "UNKNOWN_ERROR",
+    -2  => "OPERATION_NOT_PERMITTED",
+    -3  => "NO_SUCH_FILE_OR_DIRECTORY",
+    -4  => "NO_SUCH_PROCESS",
+    -5  => "INTERRUPTED_FUNCTION_CALL",
+    -6  => "INPUT_OUTPUT_ERROR",
+    -7  => "NO_SUCH_DEVICE_OR_ADDRESS",
+    -8  => "ARG_LIST_TOO_LONG",
+    -9  => "EXEC_FORMAT_ERROR",
+    -10 => "BAD_FILE_DESCRIPTOR",
+    -11 => "NO_CHILD_PROCESSES",
+    -12 => "RESOURCE_TEMPORARILY_UNAVAILABLE",
+    -13 => "NOT_ENOUGH_SPACE",
+    -14 => "PERMISSION_DENIED",
+    -15 => "BAD_ADDRESS",
+    -16 => "RESOURCE_BUSY",
+    -17 => "FILE_EXISTS",
+    -18 => "IMPROPER_LINK",
+    -19 => "NO_SUCH_DEVICE",
+    -20 => "NOT_A_DIRECTORY",
+    -21 => "IS_A_DIRECTORY",
+    -22 => "INVALID_ARGUMENT",
+    -23 => "TOO_MANY_OPEN_FILES_IN_SYSTEM",
+    -24 => "TOO_MANY_OPEN_FILES",
+    -25 => "INAPPROPRIATE_I_O_CONTROL_OPERATION",
+    -26 => "FILE_TOO_LARGE",
+    -27 => "NO_SPACE_LEFT_ON_DEVICE",
+    -28 => "INVALID_SEEK",
+    -29 => "READ_ONLY_FILE_SYSTEM",
+    -30 => "TOO_MANY_LINKS",
+    -31 => "BROKEN_PIPE",
+    -32 => "DOMAIN_ERROR",
+    -33 => "RESULT_TOO_LARGE",
+    -34 => "RESOURCE_DEADLOCK_AVOIDED",
+    -35 => "NO_MEMORY_AVAILABLE",
+    -36 => "FILENAME_TOO_LONG",
+    -37 => "NO_LOCKS_AVAILABLE",
+    -38 => "FUNCTION_NOT_IMPLEMENTED",
+    -39 => "DIRECTORY_NOT_EMPTY",
+    -40 => "ILLEGAL_BYTE_SEQUENCE",
+    -41 => "SOCKET_NOT_INITIALIZED",
+    -42 => "OPERATION_WOULD_BLOCK",
+    -43 => "ADDRESS_IS_NOT_AVAILABLE",
+    -44 => "NETWORK_IS_DOWN",
+    -45 => "NO_BUFFER",
+    -46 => "SOCKET_IS_ALREADY_CONNECTED",
+    -47 => "SOCKET_IS_NOT_CONNECTED",
+    -48 => "SOCKET_IS_ALREADY_SHUTDOWNED",
+    -49 => "OPERATION_TIMEOUT",
+    -50 => "CONNECTION_REFUSED",
+    -51 => "RANGE_ERROR",
+    -52 => "TOKENIZER_ERROR",
+    -53 => "FILE_CORRUPT",
+    -54 => "INVALID_FORMAT",
+    -55 => "OBJECT_CORRUPT",
+    -56 => "TOO_MANY_SYMBOLIC_LINKS",
+    -57 => "NOT_SOCKET",
+    -58 => "OPERATION_NOT_SUPPORTED",
+    -59 => "ADDRESS_IS_IN_USE",
+    -60 => "ZLIB_ERROR",
+    -61 => "LZO_ERROR",
+    -62 => "STACK_OVER_FLOW",
+    -63 => "SYNTAX_ERROR",
+    -64 => "RETRY_MAX",
+    -65 => "INCOMPATIBLE_FILE_FORMAT",
+    -66 => "UPDATE_NOT_ALLOWED",
+    -67 => "TOO_SMALL_OFFSET",
+    -68 => "TOO_LARGE_OFFSET",
+    -69 => "TOO_SMALL_LIMIT",
+    -70 => "CAS_ERROR",
+    -71 => "UNSUPPORTED_COMMAND_VERSION",
+);
+
 use App::Sheroonga::Command;
 our %GroongaCommands = %App::Sheroonga::Command::GroongaCommands;
 our %GroongaOptions = %App::Sheroonga::Command::GroongaOptions;
@@ -39,7 +114,7 @@ sub CLI {
         );
 
         if (@args) { # Required to run a single command
-            $sheroonga->exec(@args);
+            $sheroonga->exec_show(@args);
         } else {
             $sheroonga->start_repl;
         }
@@ -99,31 +174,7 @@ sub start_repl {
     while (defined(my $l = $self->{caroline}->readline('groonga> '))) {
         my ($command, @args) = $self->parse_input($l);
         if (defined $command) {
-            my $res = $self->exec($command, @args);
-            warn "resposne_code = " .$res->http_response->code;
-            warn "data = ".$res->data;
-            # We can't use $res->is_success here because
-            # Groonga http server returns non-success(2xx)
-            # codes even if HTTP request had succeed.
-            # I believe(or I hope) Groonga httpd does not return
-            # 5xx codes except in case they have "real" error.
-            if ($res->http_response->code =~ /^5/) {
-                # HTTP request has failed (not a groonga error)
-                $self->print(sprintf "HTTP request to %s failed. [%s] %s",
-                             $self->{groonga}->end_point,
-                             $res->http_response->code,
-                             $res->http_response->body);
-            } else {
-                my $json = $res->http_response->content;
-                my $data = eval {
-                    $self->{json}->decode($json)
-                };
-                if ($@) {
-                    $self->print("Can't decode HTTP response as JSON: $json");
-                } else {
-                    $self->print_response($command, $data);
-                }
-            }
+            $self->exec_show($command, @args);
             last if $command eq 'quit';
         }
     }
@@ -135,6 +186,38 @@ sub exec {
     return unless $GroongaCommands{$command};
     my %args = $self->make_hash_args($command, @args);
     $self->{groonga}->call($command, %args);
+}
+
+sub exec_show {
+    my ($self, $command, @args) = @_;
+
+    my $res = $self->exec($command, @args);
+    warn "resposne_code = " .$res->http_response->code;
+    warn "data = ".$res->data;
+    # We can't use $res->is_success here because
+    # Groonga http server returns non-success(2xx)
+    # codes even if HTTP request had succeed.
+    # I believe(or I hope) Groonga httpd does not return
+    # 5xx codes except in case they have "real" error.
+    if ($res->http_response->code =~ /^5/) {
+        # HTTP request has failed (not a groonga error)
+        $self->print(sprintf "HTTP request to %s failed. [%s] %s",
+                     $self->{groonga}->end_point,
+                     $res->http_response->code,
+                     $res->http_response->body);
+    } else {
+        # We need to decode JSON response manually because
+        # N::Groonga::HTTP returns undef unless return code is 0(success)
+        my $json = $res->http_response->content;
+        my $data = eval {
+            $self->{json}->decode($json)
+        };
+        if ($@) {
+            $self->print("Can't decode HTTP response as JSON: $json");
+        } else {
+            $self->print_result($command, $data);
+        }
+    }
 }
 
 sub make_hash_args {
@@ -154,32 +237,46 @@ sub make_hash_args {
     %args;
 }
 
-sub print_response {
-    my ($self, $command, $data) = @_;
-
-    if ($data->[0][0] == 0) {
-        $self->print($self->{json}->encode($data));
-    } else {
-        $self->print_grn_error($data);
-    }
-}
-
-sub print_grn_error {
-    my ($self, $data) = @_;
-
-    $self->print(sprintf <<EOS, $data->[0][0], $data->[0][3]);
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@ Groonga Error @
-Code    : %s
-Message : %s
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-EOS
-}
-
 sub print {
     my ($self, @args) = @_;
     my $fh = $self->{stdout};
     CORE::print $fh @args;
+}
+
+sub print_header {
+    my ($self, $header) = @_;
+
+    $self->print(join(' ',
+        $GroongaReturnCodes{$header->[0]} || $header->[0], # Return code
+        sprintf('(%.4f sec)', $header->[2]),               # Elapsed time
+    ), "\n");
+}
+
+sub print_error {
+    my ($self, $header) = @_;
+
+    $self->print(<<EOS);
+@@@@@@@@@@@@@@@@ ERROR @@@@@@@@@@@@@@@@@@@
+Code    : $header->[0] $GroongaReturnCodes{$header->[0]}
+Message : $header->[3]
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+EOS
+}
+
+sub print_result {
+    my ($self, $command, $data) = @_;
+
+    if ($data->[0][0] == 0) {
+        my $meth = $self->can("print_$command\_result");
+        if ($meth) {
+            $self->$meth($data->[1]);
+        } else {
+            $self->print($self->{json}->encode($data->[1]));
+        }
+    } else {
+        $self->print_error($data->[0]);
+    }
+    $self->print_header($data->[0]);
 }
 
 sub parse_input {
