@@ -294,7 +294,7 @@ sub complete_command_opts {
     if ($prefix) {
         @candidates = grep /^\Q$prefix\E/, @candidates;
     }
-    @candidates;
+    map { '--'.$_ } @candidates;
 }
 
 sub complete_command_any {
