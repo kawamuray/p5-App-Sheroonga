@@ -3,7 +3,7 @@
 High functional [Groonga](http://groonga.org) shell client.
 The original Groonga shell client which distributed with Groonga itself
 is very poor.  The result of command output is very hard to read, very few
-keyboard support(i.e. these is no Crtl-H(backward delete)), no history
+keyboard support(i.e. there is no Crtl-H(backward delete)), no history
 and no completion.
 
 This project aims to provide the shell which supports these features.
