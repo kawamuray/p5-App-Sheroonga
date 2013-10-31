@@ -331,14 +331,14 @@ sub completion_dispatch {
         } else {
             my $opt = pop @rest;
             return ($opt && $opt =~ /\A-/)
-                ? $self->complete_option_args($opt, $last, \@rest)
-                : $self->complete_command_any($command, $last);
+                ? $self->complete_option_args($opt, $last, $command)
+                : $self->complete_command_any($command, $last, \@rest);
         }
     } else {
         if ($last_is_opt) {
-            return $self->complete_option_args($last);
+            return $self->complete_option_args($last, undef, $command);
         } else {
-            return $self->complete_command_any($command);
+            return $self->complete_command_any($command, undef, \@rest);
         }
     }
 }
